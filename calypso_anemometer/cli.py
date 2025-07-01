@@ -80,6 +80,13 @@ log_to_option = click.option(
     required=False,
     help="Path to a file to log telemetry data (e.g., data.csv).",
 )
+log_file_lines_option = click.option(
+    "--log-file-lines",
+    type=int,
+    required=False,
+    default=1000,
+    help="Maximum number of lines to keep in the log file. Default: 1000.",
+)
 
 
 
@@ -185,6 +192,7 @@ async def set_option(
 @rate_option
 @compass_option
 @log_to_option
+@log_file_lines_option
 @click.pass_context
 @make_sync
 async def read(
@@ -198,6 +206,7 @@ async def read(
     rate: t.Optional[CalypsoDeviceDataRate] = None,
     compass: t.Optional[CalypsoDeviceCompassStatus] = None,
     log_to: t.Optional[str] = None,
+    log_file_lines: t.Optional[int] = None,
 ):
     quiet = ctx.parent.params.get("quiet")
     settings = Settings(
@@ -206,7 +215,7 @@ async def read(
         ble_discovery_timeout=ble_discovery_timeout,
         ble_connect_timeout=ble_connect_timeout,
     )
-    handler = await handler_factory(subscribe=subscribe, target=target, rate=rate, compass=compass, quiet=quiet, log_to=log_to)
+    handler = await handler_factory(subscribe=subscribe, target=target, rate=rate, compass=compass, quiet=quiet, log_to=log_to, log_file_lines=log_file_lines)
     await run_engine(workhorse=CalypsoDeviceApi, settings=settings, handler=handler)
 
 
@@ -216,6 +225,7 @@ async def read(
 @rate_option
 @compass_option
 @log_to_option
+@log_file_lines_option
 @click.pass_context
 @make_sync
 async def fake(
@@ -225,11 +235,12 @@ async def fake(
     rate: t.Optional[CalypsoDeviceDataRate] = None,
     compass: t.Optional[CalypsoDeviceCompassStatus] = None,
     log_to: t.Optional[str] = None,
+    log_file_lines: t.Optional[int] = None,
 ):
     from calypso_anemometer.fake import CalypsoDeviceApiFake
 
     quiet = ctx.parent.params.get("quiet")
-    handler = await handler_factory(subscribe=subscribe, target=target, rate=rate, compass=compass, quiet=quiet, log_to=log_to)
+    handler = await handler_factory(subscribe=subscribe, target=target, rate=rate, compass=compass, quiet=quiet, log_to=log_to, log_file_lines=log_file_lines)
     await run_engine(workhorse=CalypsoDeviceApiFake, handler=handler)
 
 

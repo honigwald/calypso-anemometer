@@ -12,6 +12,7 @@ from calypso_anemometer.telemetry.adapter import TelemetryAdapter
 from calypso_anemometer.util import wait_forever
 
 from datetime import datetime, timezone
+import os
 
 logger = logging.getLogger(__name__)
 
@@ -37,6 +38,7 @@ async def handler_factory(
     compass: t.Optional[CalypsoDeviceCompassStatus] = None,
     quiet: bool = False,
     log_to: t.Optional[str] = None,
+    log_file_lines: t.Optional[int] = None,
 ) -> t.Callable:
     """
     Create an asynchronous handler function for processing readings.
@@ -66,6 +68,22 @@ async def handler_factory(
         if log_file.tell() == 0:
             log_file.write("wind_speed,wind_direction,temperature\n")
 
+    # Function to write a row to a CSV file, truncating if necessary.
+    def write_row_to_csv(filepath: str, row: str, log_file_lines: int):
+        lines = []
+        if os.path.exists(filepath):
+            with open(filepath, "r") as f:
+                lines = f.readlines()
+    
+        lines.append(row + "\n")
+    
+        # Truncate if too many lines
+        if log_file_lines is not None and len(lines) > log_file_lines:
+            lines = lines[-log_file_lines:]
+    
+        with open(filepath, "w") as f:
+            f.writelines(lines)
+
     # When a reading is received, optionally display on STDOUT or hand over to telemetry adapter.
     def process_reading(reading: CalypsoReading):
         nonlocal message_counter
@@ -78,11 +96,11 @@ async def handler_factory(
             reading.dump()
         if telemetry is not None:
             telemetry.submit(reading)
+
+        # Optionally log to a file.
         if log_file is not None:
-            log_file.write(
-                f"{timestamp},{reading.wind_speed},{reading.wind_direction},{reading.temperature}\n"
-            )
-            log_file.flush()
+            row = f"{timestamp},{reading.wind_speed},{reading.wind_direction},{reading.temperature}\n"
+            write_row_to_csv(log_to, row, log_file_lines)
 
         if message_counter % message_counter_log_each == 0:
             logger.info(f"Processed readings: {message_counter}")
