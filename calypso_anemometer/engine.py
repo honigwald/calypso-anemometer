@@ -11,6 +11,8 @@ from calypso_anemometer.model import CalypsoDeviceCompassStatus, CalypsoDeviceDa
 from calypso_anemometer.telemetry.adapter import TelemetryAdapter
 from calypso_anemometer.util import wait_forever
 
+from datetime import datetime, timezone
+
 logger = logging.getLogger(__name__)
 
 
@@ -34,6 +36,7 @@ async def handler_factory(
     rate: t.Optional[CalypsoDeviceDataRate] = None,
     compass: t.Optional[CalypsoDeviceCompassStatus] = None,
     quiet: bool = False,
+    log_to: t.Optional[str] = None,
 ) -> t.Callable:
     """
     Create an asynchronous handler function for processing readings.
@@ -54,15 +57,33 @@ async def handler_factory(
     telemetry = None
     if target is not None:
         telemetry = TelemetryAdapter(uri=target)
+    
+    # Optionally log to a file
+    log_file = None
+    if log_to is not None:
+        log_file = open(log_to, mode="a", encoding="utf-8")
+        # Write header if file is empty
+        if log_file.tell() == 0:
+            log_file.write("wind_speed,wind_direction,temperature\n")
 
     # When a reading is received, optionally display on STDOUT or hand over to telemetry adapter.
     def process_reading(reading: CalypsoReading):
         nonlocal message_counter
         message_counter += 1
+        timestamp = datetime.now(timezone.utc).isoformat()
+
+
         if not quiet:
+            print(f"[{timestamp}] ", end="")
             reading.dump()
         if telemetry is not None:
             telemetry.submit(reading)
+        if log_file is not None:
+            log_file.write(
+                f"{timestamp},{reading.wind_speed},{reading.wind_direction},{reading.temperature}\n"
+            )
+            log_file.flush()
+
         if message_counter % message_counter_log_each == 0:
             logger.info(f"Processed readings: {message_counter}")
 

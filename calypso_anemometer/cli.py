@@ -74,6 +74,13 @@ compass_option = click.option(
 )
 subscribe_option = click.option("--subscribe", is_flag=True, required=False, help="Continuously receive readings")
 target_option = click.option("--target", type=str, required=False, help="Submit telemetry data to target")
+log_to_option = click.option(
+    "--log-to",
+    type=click.Path(writable=True, dir_okay=False),
+    required=False,
+    help="Path to a file to log telemetry data (e.g., data.csv).",
+)
+
 
 
 @click.command()
@@ -177,6 +184,7 @@ async def set_option(
 @target_option
 @rate_option
 @compass_option
+@log_to_option
 @click.pass_context
 @make_sync
 async def read(
@@ -189,6 +197,7 @@ async def read(
     target: t.Optional[str] = None,
     rate: t.Optional[CalypsoDeviceDataRate] = None,
     compass: t.Optional[CalypsoDeviceCompassStatus] = None,
+    log_to: t.Optional[str] = None,
 ):
     quiet = ctx.parent.params.get("quiet")
     settings = Settings(
@@ -197,7 +206,7 @@ async def read(
         ble_discovery_timeout=ble_discovery_timeout,
         ble_connect_timeout=ble_connect_timeout,
     )
-    handler = await handler_factory(subscribe=subscribe, target=target, rate=rate, compass=compass, quiet=quiet)
+    handler = await handler_factory(subscribe=subscribe, target=target, rate=rate, compass=compass, quiet=quiet, log_to=log_to)
     await run_engine(workhorse=CalypsoDeviceApi, settings=settings, handler=handler)
 
 
@@ -206,6 +215,7 @@ async def read(
 @target_option
 @rate_option
 @compass_option
+@log_to_option
 @click.pass_context
 @make_sync
 async def fake(
@@ -214,11 +224,12 @@ async def fake(
     target: t.Optional[str] = None,
     rate: t.Optional[CalypsoDeviceDataRate] = None,
     compass: t.Optional[CalypsoDeviceCompassStatus] = None,
+    log_to: t.Optional[str] = None,
 ):
     from calypso_anemometer.fake import CalypsoDeviceApiFake
 
     quiet = ctx.parent.params.get("quiet")
-    handler = await handler_factory(subscribe=subscribe, target=target, rate=rate, compass=compass, quiet=quiet)
+    handler = await handler_factory(subscribe=subscribe, target=target, rate=rate, compass=compass, quiet=quiet, log_to=log_to)
     await run_engine(workhorse=CalypsoDeviceApiFake, handler=handler)
 
 
